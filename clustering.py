@@ -99,6 +99,7 @@ Indicator1 = ['Electricity production from oil sources (% of total)',
               'Electricity production from coal sources (% of total)', 'Electricity production from renewable sources, excluding hydroelectric (kWh)',
               'Urban population (% of total population)']
 data1 = stat_data(Main_data, 'Country Name', 'Australia', year, Indicator1)
+print(data1.head())
 data['Year'] = data['Year'].astype('int')
 # Rename indicators to short
 data1 = data1.rename(columns={
@@ -141,3 +142,85 @@ low, up = err_ranges(2030, Expo, popt, sigma)
 print("Population growth (annual %) in 2030 is ", low, "and", up)
 low, up = err_ranges(2040, Expo, popt, sigma)
 print("Population growth (annual %) in 2040 is ", low, "and", up)
+def map_corr(df, size=6):
+    """Function creates heatmap of correlation matrix for each pair of 
+    columns in the dataframe.
+
+    """
+
+    import matplotlib.pyplot as plt  
+
+    corr = df.corr()
+    plt.figure(figsize=(size, size))
+    plt.matshow(corr, cmap='coolwarm')
+    # setting ticks to column names
+    plt.xticks(range(len(corr.columns)), corr.columns, rotation=90)
+    plt.yticks(range(len(corr.columns)), corr.columns)
+    plt.colorbar()
+    plt.title("Australia's Heatmap".upper(), size = 12, fontweight = 'bold')
+    plt.savefig('Heatmap.png', dpi = 300, bbox_inches = 'tight')
+    
+corr = data1.corr()
+print(corr)
+map_corr(data1)
+plt.show()
+
+# Plotting scatter matrix
+pd.plotting.scatter_matrix(data1, figsize=(12, 12), s=5, alpha=0.8)
+plt.tight_layout()
+plt.title("Scatter Matrix")
+plt.savefig("Scattermatrix.png")
+plt.show()
+
+plt.scatter(data1['Electricity- oil source'],
+            data1['Electricity- hydroelectric sources'])
+plt.title("Electricity production from oil source vs hydroelectric source")
+plt.savefig("Scatterelectricity.png")
+
+scaler = MinMaxScaler()
+scaler.fit(data1[['Electricity- oil source']])
+data1['Scaler_Oil'] = scaler.transform(
+    data1['Electricity- oil source'].values.reshape(-1, 1))
+
+scaler.fit(data1[['Electricity- hydroelectric sources']])
+data1['Scaler_H'] = scaler.transform(
+    data1['Electricity- hydroelectric sources'].values.reshape(-1, 1))
+data_c = data1.loc[:, ['Scaler_Oil', 'Scaler_H']]
+
+
+def n_cluster(data_frame):
+  k_rng = range(1, 10)
+  sse = []
+  for k in k_rng:
+    km = KMeans(n_clusters=k)
+    km.fit_predict(data_frame)
+    sse.append(km.inertia_)
+  return k_rng, sse
+
+#Using elbow method
+plt.figure()
+a, b = n_cluster(data_c)
+plt.xlabel('k')
+plt.ylabel('sum of squared error')
+plt.title("Number of clusters")
+plt.plot(a, b)
+plt.savefig("Elbow.png")
+plt.show()
+
+km = KMeans(n_clusters=2) # finding best cluster point is 2
+pred = km.fit_predict(data_c[['Scaler_Oil', 'Scaler_H']])
+data_c['cluster'] = pred
+
+# plotting clustering
+centers = km.cluster_centers_
+dc1 = data_c[data_c.cluster == 0]
+dc2 = data_c[data_c.cluster == 1]
+plt.scatter(dc1['Scaler_Oil'], dc1['Scaler_H'], color='pink')
+plt.scatter(dc2['Scaler_Oil'], dc2['Scaler_H'], color='blue')
+plt.scatter(centers[:, 0], centers[:, 1], s=200, marker='*', color='red')
+plt.title("Cluster plot with 2 clusters")
+plt.xlabel("Electricity production from oil sources")
+plt.ylabel("Electricity production from hydroelectric sources")
+plt.savefig("Scatterwithcenter.png")
+
+
