@@ -85,3 +85,59 @@ def stat_data(df, col, value, yr, a):
 
 # Reads csv file
 Main_data = read_data("climate_change.xlsx")
+start = 1961
+end = 2015
+year = [str(i) for i in range(start, end+1)]
+# Data for fitting
+Indicator = ['Population growth (annual %)',
+             'Electricity production from oil sources (% of total)']
+data = stat_data(Main_data, 'Country Name', 'Canada', year, Indicator)
+data = data.rename_axis('Year').reset_index()
+# Data for clustering
+Indicator1 = ['Electricity production from oil sources (% of total)',
+              'Electricity production from hydroelectric sources (% of total)',
+              'Electricity production from coal sources (% of total)', 'Electricity production from renewable sources, excluding hydroelectric (kWh)',
+              'Urban population (% of total population)']
+data1 = stat_data(Main_data, 'Country Name', 'Australia', year, Indicator1)
+data['Year'] = data['Year'].astype('int')
+# Rename indicators to short
+data1 = data1.rename(columns={
+    'Electricity production from oil sources (% of total)': 'Electricity- oil source',
+    'Electricity production from hydroelectric sources (% of total)': 'Electricity- hydroelectric sources',
+    'Electricity production from coal sources (% of total)': 'Electricity- coal sources',
+    'Electricity production from renewable sources, excluding hydroelectric (kWh)': 'Electricity- renewable sources',
+    'Urban population (% of total population)': 'Urban population'})
+
+# Plot fitting
+plt.figure()
+sns.scatterplot(data=data, x="Year",
+                y="Population growth (annual %)", cmap="Accent")
+plt.title('Scatter Plot between 1961-2015 before fitting')
+plt.ylabel('Population growth (annual %)')
+plt.xlabel('Year')
+plt.xlim(1961, 2020)
+plt.savefig("Scatter_fit.png")
+plt.show()
+
+popt, pcov = opt.curve_fit(
+    Expo, data['Year'], data['Population growth (annual %)'], p0=[1000, 0.02])
+data["Pop"] = Expo(data['Year'], *popt)
+sigma = np.sqrt(np.diag(pcov))
+low, up = err_ranges(data["Year"], Expo, popt, sigma)
+#Plotting the fitted and real data by showing confidence range
+plt.figure()
+plt.title("Plot After Fitting")
+plt.plot(data["Year"], data['Population growth (annual %)'], label="data")
+plt.plot(data["Year"], data["Pop"], label="fit")
+plt.fill_between(data["Year"], low, up, alpha=0.7)
+plt.legend()
+plt.xlabel("Year")
+plt.ylabel("Population growth")
+plt.savefig("Afterfitting.png")
+plt.show()
+
+#Predicting future values
+low, up = err_ranges(2030, Expo, popt, sigma)
+print("Population growth (annual %) in 2030 is ", low, "and", up)
+low, up = err_ranges(2040, Expo, popt, sigma)
+print("Population growth (annual %) in 2040 is ", low, "and", up)
